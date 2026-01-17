@@ -1,0 +1,180 @@
+/**
+ * Main Application Controller
+ * Manages state, routing, and API polling
+ */
+
+const API_BASE = 'http://localhost:8000';
+
+/**
+ * Show a toast notification with operation name and timing
+ */
+function showToast(message, operation, redisMs, roundtripMs) {
+    const existing = document.getElementById('api-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'api-toast';
+    toast.className = 'fixed bottom-4 right-4 bg-white text-gray-600 px-4 py-3 rounded-lg shadow-md border border-gray-200 text-sm font-medium z-50 transition-opacity duration-300';
+
+    const g = (ms) => `<span style="color: #059669; font-weight: 600">${ms}ms</span>`;
+    toast.innerHTML = `${message} | ${operation}: ${g(redisMs)} | Roundtrip: ${g(roundtripMs)}`;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.style.opacity = '0', 4000);
+    setTimeout(() => toast.remove(), 4500);
+}
+
+/**
+ * Show toast for transactions with LRANGE + JSON.MGET breakdown
+ */
+function showToastTransactions(message, lrangeMs, mgetMs, roundtripMs) {
+    const existing = document.getElementById('api-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'api-toast';
+    toast.className = 'fixed bottom-4 right-4 bg-white text-gray-600 px-4 py-3 rounded-lg shadow-md border border-gray-200 text-sm font-medium z-50 transition-opacity duration-300';
+
+    const g = (ms) => `<span style="color: #059669; font-weight: 600">${ms}ms</span>`;
+    toast.innerHTML = `${message} | LRANGE: ${g(lrangeMs)} | JSON.MGET: ${g(mgetMs)} | Roundtrip: ${g(roundtripMs)}`;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.style.opacity = '0', 4000);
+    setTimeout(() => toast.remove(), 4500);
+}
+const POLL_INTERVAL = 2000; // 2 seconds
+
+const AppState = {
+    screen: 'startup', // 'startup' | 'banking'
+    activeTab: 'transactions',
+    status: {
+        transactions_unlocked: false,
+        categories_unlocked: false,
+        timeseries_unlocked: false,
+        search_unlocked: false
+    },
+    selectedTransaction: null
+};
+
+class App {
+    constructor() {
+        this.pollTimer = null;
+        this.init();
+    }
+
+    async init() {
+        console.log('App initializing...');
+        console.log('AppState:', AppState);
+        this.render();
+        this.startPolling();
+        console.log('App initialized');
+    }
+
+    async checkStatus() {
+        try {
+            const res = await fetch(`${API_BASE}/api/status`);
+            const status = await res.json();
+
+            // Only re-render if unlock status changed
+            const changed =
+                status.transactions_unlocked !== AppState.status.transactions_unlocked ||
+                status.categories_unlocked !== AppState.status.categories_unlocked ||
+                status.timeseries_unlocked !== AppState.status.timeseries_unlocked ||
+                status.search_unlocked !== AppState.status.search_unlocked;
+
+            AppState.status = status;
+
+            if (changed) {
+                this.render();
+            }
+        } catch (err) {
+            console.error('Failed to check status:', err);
+        }
+    }
+
+    startPolling() {
+        this.pollTimer = setInterval(() => this.checkStatus(), POLL_INTERVAL);
+    }
+
+    stopPolling() {
+        if (this.pollTimer) clearInterval(this.pollTimer);
+    }
+
+    navigateToBank() {
+        AppState.screen = 'banking';
+        this.render();
+    }
+
+    switchTab(tab) {
+        AppState.activeTab = tab;
+        AppState.selectedTransaction = null;
+        if (typeof selectedCategory !== 'undefined') {
+            selectedCategory = null; // Reset categories selection
+        }
+        this.render();
+    }
+
+    render() {
+        const container = document.getElementById('app');
+        console.log('Rendering...', 'container:', container, 'screen:', AppState.screen);
+
+        if (AppState.screen === 'startup') {
+            container.innerHTML = renderStartupScreen();
+            this.attachStartupListeners();
+        } else {
+            container.innerHTML = renderBankingApp();
+            this.attachBankingListeners();
+        }
+    }
+
+    attachStartupListeners() {
+        const btn = document.getElementById('begin-btn');
+        if (btn) {
+            btn.onclick = () => this.navigateToBank();
+        }
+
+        const insightBtn = document.getElementById('redis-insight-btn');
+        if (insightBtn) {
+            insightBtn.onclick = () => window.open('http://localhost:8001', '_blank');
+        }
+
+        // Start polling for latest transaction
+        if (typeof startTransactionPolling === 'function') {
+            startTransactionPolling();
+        }
+    }
+
+    attachBankingListeners() {
+        // Tab clicks
+        document.querySelectorAll('[data-tab]').forEach(el => {
+            el.onclick = () => this.switchTab(el.dataset.tab);
+        });
+
+        // Redis Insight
+        const insightBtn = document.getElementById('redis-insight-btn');
+        if (insightBtn) {
+            insightBtn.onclick = () => window.open('http://localhost:8001', '_blank');
+        }
+
+        // Tab-specific listeners
+        if (AppState.activeTab === 'transactions' && AppState.status.transactions_unlocked) {
+            attachTransactionsListeners();
+        } else if (AppState.activeTab === 'categories' && AppState.status.categories_unlocked) {
+            attachCategoriesListeners();
+        } else if (AppState.activeTab === 'timeseries' && AppState.status.timeseries_unlocked) {
+            attachTimeseriesListeners();
+        } else if (AppState.activeTab === 'search' && AppState.status.search_unlocked) {
+            attachSearchListeners();
+        }
+    }
+}
+
+// Start app after DOM and all scripts load
+let app;
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        app = new App();
+    });
+} else {
+    app = new App();
+}
