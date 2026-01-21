@@ -26,23 +26,23 @@ Build a real-time transaction backend with Redis. Store data so it can be queiri
 
 
 
-Pre-requisites
+=============================================
+## Pre-requisites
 
 Please ensure the following are completed before attending the workshop to ensure a smooth experience.
 
-1. Internet Connection
-
+### 1. Internet Connection
 Ensure you have a stable internet connection so you can:
-•	Clone the workshop repository
-•	Install required libraries during the session
+- Clone the workshop repository
+- Install required libraries during the session
 
-2. Docker Setup
-Download and install Docker from:
+### 2. Docker Setup
+Download and install Docker from:  
 https://www.docker.com
 
-3. Python Environment
-Python 3 is required. It is recommended to create and use a virtual environment
+### 3. Python Environment
+- Python 3 is required
+- It is recommended to create and use a virtual environment
 
-Documentation:
+**Documentation:**  
 https://docs.python.org/3/library/venv.html
-<img width="468" height="325" alt="image" src="https://github.com/user-attachments/assets/2797a261-d558-4957-90c8-4b1a9874cbf4" />
